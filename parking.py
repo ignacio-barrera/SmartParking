@@ -8,7 +8,7 @@ w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FR
 video_writer = cv2.VideoWriter("output.avi", cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
 parking_manager = solutions.ParkingManagement(
-    model="runs/detect/train/weights/best.pt",
+    model="runs/detect/train2/weights/best.pt",
     json_file="bounding_boxes.json", 
 )
 

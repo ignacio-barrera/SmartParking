@@ -1,7 +1,7 @@
 import cv2
 from ultralytics import YOLO
 
-model = YOLO("runs/detect/train/weights/best.pt")  # Puedes elegir el modelo que prefieras (n, s, m, l, x)
+model = YOLO("runs/detect/train2/weights/best.pt")
 
 cap = cv2.VideoCapture("data/p3.mp4")
 assert cap.isOpened(), "Error leyendo el archivo de video"
@@ -18,7 +18,7 @@ while cap.isOpened():
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             label = int(box.cls) 
             confidence = box.conf.item()
-            if label == 3: # Vehículo
+            if label == 3:
                 label = "Auto"
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
