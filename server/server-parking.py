@@ -39,14 +39,15 @@ def upload_image():
     if img is not None:
         # Procesar la imagen y obtener información
         parking_manager.model.track(img, persist=True, show=False, classes=[3])
+
+        # Procesar la imagen para su almacenamiento final
+        parking_manager.process_data(img)
+
         Available_slots = parking_manager.pr_info['Available']
         Occupancy_slots = parking_manager.pr_info['Occupancy']
 
         print(f"Available spaces: {Available_slots}")
         print(f"Occupied spaces: {Occupancy_slots}")
-
-        # Procesar la imagen para su almacenamiento final
-        parking_manager.process_data(img)
 
         _, buffer = cv2.imencode('.jpg', img)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
