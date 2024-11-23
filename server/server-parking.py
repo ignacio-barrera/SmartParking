@@ -1,15 +1,16 @@
 import cv2
 from flask import Flask, request
 import os
+import json
 from datetime import datetime
-from ultralytics import YOLO, solutions
+from ultralytics import solutions
+import numpy as np
 
 app = Flask(__name__)
 
-
 # Modelo de gestión de estacionamientos utilizando YOLO
 parking_manager = solutions.ParkingManagement(
-    model="runs/detect/train2/weights/best.pt",
+    model="best.pt",
     json_file="bounding_boxes.json", 
 )
 
@@ -17,11 +18,6 @@ parking_manager = solutions.ParkingManagement(
 def upload_image():
     camera_id = request.form.get('camera_id')
     timestamp = request.form.get('timestamp')
-    data = request.form.get('data')
-
-    UPLOAD_FOLDER = 'server/images/'
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
 
     if 'image' not in request.files:
         return 'No image part', 400
@@ -30,28 +26,37 @@ def upload_image():
     if file.filename == '':
         return 'No selected file', 400
 
-    camera_folder = os.path.join(UPLOAD_FOLDER, camera_id)
-    if not os.path.exists(camera_folder):
-        os.makedirs(camera_folder)
+    # Leer la imagen directamente desde el archivo cargado
+    file_bytes = file.read()
+    np_arr = np.frombuffer(file_bytes, np.uint8)
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-    timestamp_formatted = datetime.fromisoformat(timestamp).strftime('d%d-m%m_H%H-M%M-S%S')
-    filename = f"{camera_id}_{timestamp_formatted}.jpg"
-    file_path = os.path.join(camera_folder, filename)
-    file.save(file_path)
-
-    # Leer la imagen guardada con OpenCV
-    img = cv2.imread(file_path)
     if img is not None:
-        # Procesar la imagen como si fuera un frame de video
-        processed_img = parking_manager.process_data(img)
+        # Procesar la imagen y obtener información
+        parking_manager.model.track(img, persist=True, show=False, classes=[3])
+        Available_slots = parking_manager.pr_info['Available']
+        Occupancy_slots = parking_manager.pr_info['Occupancy']
 
-        # Guardar o mostrar la imagen procesada
-        output_path = os.path.join(camera_folder, f"processed_{filename}")
+        print(f"Available spaces: {Available_slots}")
+        print(f"Occupied spaces: {Occupancy_slots}")
+
+        # Procesar la imagen para su almacenamiento final
+        processed_img = parking_manager.process_data(img)
+        UPLOAD_FOLDER = 'server/images/'
+        camera_folder = os.path.join(UPLOAD_FOLDER, camera_id)
+        if not os.path.exists(camera_folder):
+            os.makedirs(camera_folder)
+        timestamp_formatted = datetime.fromisoformat(timestamp).strftime('d%d-m%m_H%H-M%M-S%S')
+        filename = f"processed_{camera_id}_{timestamp_formatted}.jpg"
+        output_path = os.path.join(camera_folder, filename)
         cv2.imwrite(output_path, processed_img)
         print(f"Processed image saved at: {output_path}")
 
-    print(f"Received data: {data}")
-    return 'Image successfully uploaded and processed', 200
+    return json.dumps({
+        "message": "Image successfully uploaded and processed",
+        "Available_slots": Available_slots,
+        "Occupied": Occupancy_slots
+    }), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

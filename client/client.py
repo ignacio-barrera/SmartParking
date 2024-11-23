@@ -5,11 +5,11 @@ import datetime
 import cv2
 
 picam2 = Picamera2()
-config = picam2.create_still_configuration(main={"size": (1640, 1232)})
+config = picam2.create_still_configuration(main={"size": (800, 600)})
 picam2.configure(config)
 picam2.start()
 
-SERVER_URL = 'http://192.168.100.177:5000/upload'
+SERVER_URL = 'http://192.168.100.181:5000/upload'
 CAMERA_ID = 'R-Parking01'
 
 def send_image(data):
@@ -20,8 +20,7 @@ def send_image(data):
         current_time = datetime.datetime.now().isoformat()
         data = {
             'camera_id': CAMERA_ID,
-            'timestamp': current_time,
-            'data': data
+            'timestamp': current_time
         }
         response = requests.post(SERVER_URL, files=files, data=data)
         print(response.text)
