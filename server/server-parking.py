@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from ultralytics import solutions
 import numpy as np
+import requests
+import base64
 
 app = Flask(__name__)
 
@@ -13,6 +15,9 @@ parking_manager = solutions.ParkingManagement(
     model="best.pt",
     json_file="bounding_boxes.json", 
 )
+
+# Configurar la URL base de la API
+API_URL = "http://localhost:4000/api/parkings"
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -41,16 +46,38 @@ def upload_image():
         print(f"Occupied spaces: {Occupancy_slots}")
 
         # Procesar la imagen para su almacenamiento final
-        processed_img = parking_manager.process_data(img)
-        UPLOAD_FOLDER = 'server/images/'
-        camera_folder = os.path.join(UPLOAD_FOLDER, camera_id)
-        if not os.path.exists(camera_folder):
-            os.makedirs(camera_folder)
-        timestamp_formatted = datetime.fromisoformat(timestamp).strftime('d%d-m%m_H%H-M%M-S%S')
-        filename = f"processed_{camera_id}_{timestamp_formatted}.jpg"
-        output_path = os.path.join(camera_folder, filename)
-        cv2.imwrite(output_path, processed_img)
-        print(f"Processed image saved at: {output_path}")
+        parking_manager.process_data(img)
+
+        _, buffer = cv2.imencode('.jpg', img)
+        img_base64 = base64.b64encode(buffer).decode('utf-8')
+
+        parking_id = "67328c91b10695acea326f48"  # ID del estacionamiento a actualizar
+        try:
+            response = requests.put(
+                f"{API_URL}/{parking_id}",
+                json={
+                    "available": Available_slots,
+                    "occupied": Occupancy_slots,
+                    "updatedAt": timestamp,
+                    "image": f"data:image/jpeg;base64,{img_base64}"
+                }
+            )
+            if response.status_code == 200:
+                print(f"Parking updated successfully")
+            else:
+                print(f"Failed to update parking: {response.status_code}")
+        except requests.RequestException as e:
+            print(f"Error updating parking: {e}")
+
+        # UPLOAD_FOLDER = 'server/images/'
+        # camera_folder = os.path.join(UPLOAD_FOLDER, camera_id)
+        # if not os.path.exists(camera_folder):
+        #     os.makedirs(camera_folder)
+        # timestamp_formatted = datetime.fromisoformat(timestamp).strftime('d%d-m%m_H%H-M%M-S%S')
+        # filename = f"processed_{camera_id}_{timestamp_formatted}.jpg"
+        # output_path = os.path.join(camera_folder, filename)
+        # cv2.imwrite(output_path, processed_img)
+        # print(f"Processed image saved at: {output_path}")
 
     return json.dumps({
         "message": "Image successfully uploaded and processed",
